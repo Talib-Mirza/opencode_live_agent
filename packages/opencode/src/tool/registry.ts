@@ -16,6 +16,9 @@ import { WebFetchTool } from "./webfetch"
 import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
+import { BackendLogsTool, BrowserJournalTool } from "./live-journal"
+import { LiveWaitTool } from "./live-wait"
+import { LiveGateway } from "@opencode-ai/core/live"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@opencode-ai/plugin"
@@ -104,6 +107,9 @@ const layer = Layer.effect(
     const greptool = yield* GrepTool
     const patchtool = yield* ApplyPatchTool
     const skilltool = yield* SkillTool
+    const browserjournal = yield* BrowserJournalTool
+    const backendlogs = yield* BackendLogsTool
+    const livewait = yield* LiveWaitTool
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -211,6 +217,9 @@ const layer = Layer.effect(
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
+          browserjournal: Tool.init(browserjournal),
+          backendlogs: Tool.init(backendlogs),
+          livewait: Tool.init(livewait),
         })
 
         return {
@@ -230,6 +239,9 @@ const layer = Layer.effect(
             tool.search,
             tool.skill,
             tool.patch,
+            tool.browserjournal,
+            tool.backendlogs,
+            tool.livewait,
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),
           ],
@@ -414,6 +426,7 @@ export const node = LayerNode.make({
     RuntimeFlags.node,
     Database.node,
     Ripgrep.node,
+    LiveGateway.node,
   ],
 })
 

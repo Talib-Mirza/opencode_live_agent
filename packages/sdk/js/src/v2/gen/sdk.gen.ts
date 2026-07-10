@@ -90,6 +90,18 @@ import type {
   GlobalUpgradeResponses,
   InstanceDisposeErrors,
   InstanceDisposeResponses,
+  LiveConnectErrors,
+  LiveConnectResponses,
+  LiveInjectErrors,
+  LiveInjectResponses,
+  LiveJournalErrors,
+  LiveJournalResponses,
+  LiveStartErrors,
+  LiveStartResponses,
+  LiveStatusErrors,
+  LiveStatusResponses,
+  LiveStopErrors,
+  LiveStopResponses,
   LocationRef,
   LspStatusErrors,
   LspStatusResponses,
@@ -2246,6 +2258,172 @@ export class Formatter extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<FormatterStatusResponses, FormatterStatusErrors, ThrowOnError>({
       url: "/formatter",
+      ...options,
+      ...params,
+    })
+  }
+}
+
+export class Live extends HeyApiClient {
+  /**
+   * Start a live session
+   *
+   * Create a session observed by the live agent and bind it to this instance's directory so browser telemetry can flow to it.
+   */
+  public start<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<LiveStartResponses, LiveStartErrors, ThrowOnError>({
+      url: "/live/session",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Stop the live session
+   *
+   * Unbind the live session for this instance's directory, revoke outstanding capture tickets, and stop any dev-server watchers. The session itself remains a normal session.
+   */
+  public stop<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<LiveStopResponses, LiveStopErrors, ThrowOnError>({
+      url: "/live/stop",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get live capture status
+   *
+   * Report the live-capture state for this instance's directory.
+   */
+  public status<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<LiveStatusResponses, LiveStatusErrors, ThrowOnError>({
+      url: "/live/status",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Read the live telemetry journal
+   *
+   * Return recent browser telemetry captured for this instance's directory, oldest-first, with a cursor for incremental reads.
+   */
+  public journal<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      since?: string
+      kind?: "navigation" | "click" | "console" | "network" | "error"
+      limit?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "since" },
+            { in: "query", key: "kind" },
+            { in: "query", key: "limit" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<LiveJournalResponses, LiveJournalErrors, ThrowOnError>({
+      url: "/live/journal",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Serve the live capture script
+   *
+   * Serve the browser telemetry capture snippet for a directory with an active live session. Responds 404 until a live session is started.
+   */
+  public inject<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<LiveInjectResponses, LiveInjectErrors, ThrowOnError>({
+      url: "/live/inject.js",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Stream browser telemetry
+   *
+   * WebSocket ingest for live browser telemetry, authorized by a possession ticket.
+   */
+  public connect<ThrowOnError extends boolean = false>(
+    parameters?: {
+      ticket?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "ticket" }] }])
+    return (options?.client ?? this.client).get<LiveConnectResponses, LiveConnectErrors, ThrowOnError>({
+      url: "/live/connect",
       ...options,
       ...params,
     })
@@ -7160,6 +7338,11 @@ export class OpencodeClient extends HeyApiClient {
   private _formatter?: Formatter
   get formatter(): Formatter {
     return (this._formatter ??= new Formatter({ client: this.client }))
+  }
+
+  private _live?: Live
+  get live(): Live {
+    return (this._live ??= new Live({ client: this.client }))
   }
 
   private _mcp?: Mcp

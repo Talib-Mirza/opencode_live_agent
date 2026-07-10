@@ -1,0 +1,21 @@
+Wait for something to happen in the user's live browser session or dev-server logs, without holding your turn open. Arms one or more wake conditions you author yourself, then lets you end your turn; when a matching event arrives — or a timeout elapses first — you are woken with a <live_wait_fired> (or <live_wait_timeout>) message containing the matched events and your note. Only useful while a live session is active.
+
+This is how you collaborate with the user across time: say what you are waiting for or what they should do next, call live_wait, and stop. Do not poll browser_journal, sleep, or keep working while you wait.
+
+Semantics:
+- Each call REPLACES all previously armed conditions. Call with waits: [] to cancel waiting.
+- Conditions are one-shot: the condition that fires disarms itself; the others stay armed.
+- A new message from the user does NOT cancel your conditions; cancel or re-arm them yourself if they no longer make sense.
+- timeoutSeconds fires a timeout wake if nothing matched in time — use it to check in rather than waiting forever. A wait with only timeoutSeconds is a plain timer.
+- At most 10 conditions per call.
+
+Matching: every browser telemetry event and dev-server log line is rendered to one canonical line, and your `pattern` (a case-insensitive JavaScript regex) is tested against it. Optional fields are omitted from the line when absent:
+  navigation url=<url> from=<previous url>
+  click selector=<css selector> text="<visible text>" url=<page url>
+  input trigger=<change|submit> fields=<name>="value", <name>=[filled len=N], <name>=[empty] url=<page url>
+  console level=<log|warn|error> message=<message> url=<page url>
+  network method=<METHOD> requestUrl=<request url> status=<status> url=<page url>
+  error origin=<uncaught|unhandledrejection> message=<message> url=<page url>
+  backend_log stream=<stdout|stderr> line=<log line>
+
+`sources` restricts which kinds are considered; omit `pattern` to wake on any event of those kinds. Use browser_journal to see real recent events if you are unsure what a selector or URL looks like in this app.

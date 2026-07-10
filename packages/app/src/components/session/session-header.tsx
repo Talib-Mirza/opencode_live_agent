@@ -25,6 +25,7 @@ import { useSessionLayout } from "@/pages/session/session-layout"
 import { messageAgentColor } from "@/utils/agent"
 import { decode64 } from "@/utils/base64"
 import { Persist, persisted } from "@/utils/persist"
+import { LiveStatusStrip } from "../live-status-strip"
 import { StatusPopover, StatusPopoverV2 } from "../status-popover"
 import { IconButtonV2 } from "@opencode-ai/ui/v2/icon-button-v2"
 import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
@@ -147,6 +148,14 @@ export function SessionHeader() {
   const { params, view } = useSessionLayout()
 
   const projectDirectory = createMemo(() => decode64(params.dir) ?? "")
+  const currentSession = createMemo(() => sync().data.session?.find((item) => item.id === params.id))
+  const liveSession = createMemo(() => {
+    const conn = server.current
+    const directory = projectDirectory()
+    const session = currentSession()
+    if (!conn || !directory || !session?.metadata?.live) return
+    return { server: conn, directory, sessionId: session.id }
+  })
   const project = createMemo(() => {
     const directory = projectDirectory()
     if (!directory) return
@@ -325,6 +334,9 @@ export function SessionHeader() {
       <Show when={rightMount()}>
         {(mount) => (
           <Portal mount={mount()}>
+            <Show when={liveSession()}>
+              {(live) => <LiveStatusStrip server={live().server} directory={live().directory} sessionId={live().sessionId} />}
+            </Show>
             <Show
               when={isV2}
               fallback={

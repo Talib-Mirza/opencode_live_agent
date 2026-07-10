@@ -369,6 +369,7 @@ export default function Page() {
   const queryClient = useQueryClient()
   const dialog = useDialog()
   const language = useLanguage()
+  const server = useServer()
   const sdk = useSDK()
   const serverSDK = useServerSDK()
   const settings = useSettings()
@@ -492,6 +493,13 @@ export default function Page() {
   }
 
   const info = createMemo(() => (params.id ? sync().session.get(params.id) : undefined))
+  const live = createMemo(() => {
+    const conn = server.current
+    const directory = sdk().directory
+    const session = info()
+    if (!conn || !directory || !session?.metadata?.live) return
+    return { server: conn, directory, sessionId: session.id }
+  })
   const isChildSession = createMemo(() => !!info()?.parentID)
   const diffs = createMemo(() => (params.id ? list(sync().data.session_diff[params.id]) : []))
   const canReview = createMemo(() => !!sync().project)
@@ -2083,6 +2091,7 @@ export default function Page() {
           focusReviewDiff={focusReviewDiff}
           reviewSnap={ui.reviewSnap}
           size={size}
+          live={live}
         />
       </div>
 

@@ -3,6 +3,7 @@ import { Effect, Encoding, Layer, Redacted } from "effect"
 import { HttpEffect, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiError, HttpApiMiddleware } from "effect/unstable/httpapi"
 import { hasPtyConnectTicketURL } from "@/server/shared/pty-ticket"
+import { hasLiveConnectTicketURL, isLiveInjectPath } from "@/server/shared/live"
 import { isPublicUIPath } from "@/server/shared/public-ui"
 export {
   Authorization as ServerAuthorization,
@@ -25,6 +26,13 @@ export class Authorization extends HttpApiMiddleware.Service<Authorization>()(
 
 export class PtyConnectAuthorization extends HttpApiMiddleware.Service<PtyConnectAuthorization>()(
   "@opencode/ExperimentalHttpApiPtyConnectAuthorization",
+  {
+    error: HttpApiError.UnauthorizedNoContent,
+  },
+) {}
+
+export class LiveConnectAuthorization extends HttpApiMiddleware.Service<LiveConnectAuthorization>()(
+  "@opencode/ExperimentalHttpApiLiveConnectAuthorization",
   {
     error: HttpApiError.UnauthorizedNoContent,
   },
@@ -124,6 +132,24 @@ export const authorizationLayer = Layer.effect(
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest
         return yield* credentialFromRequest(request).pipe(
+          Effect.flatMap((credential) => validateCredential(effect, credential, config)),
+        )
+      }),
+    )
+  }),
+)
+
+export const liveConnectAuthorizationLayer = Layer.effect(
+  LiveConnectAuthorization,
+  Effect.gen(function* () {
+    const config = yield* ServerAuth.Config
+    if (!ServerAuth.required(config)) return LiveConnectAuthorization.of((effect) => effect)
+    return LiveConnectAuthorization.of((effect) =>
+      Effect.gen(function* () {
+        const request = yield* HttpServerRequest.HttpServerRequest
+        const url = new URL(request.url, "http://localhost")
+        if (isLiveInjectPath(url.pathname) || hasLiveConnectTicketURL(url)) return yield* effect
+        return yield* credentialFromURL(url, request).pipe(
           Effect.flatMap((credential) => validateCredential(effect, credential, config)),
         )
       }),

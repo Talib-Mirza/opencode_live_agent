@@ -13,12 +13,15 @@ import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 
 import FileTree from "@/components/file-tree"
+import { LiveBrowserTab } from "@/components/live-browser-tab"
+import { LiveConnectionTab } from "@/components/live-connection-tab"
 import { SessionContextUsage } from "@/components/session-context-usage"
 import { SessionContextTab, SortableTab, FileVisual } from "@/components/session"
 import { useCommand } from "@/context/command"
 import { useFile, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
+import type { ServerConnection } from "@/context/server"
 import { useSettings } from "@/context/settings"
 import { useSync } from "@/context/sync"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
@@ -51,6 +54,7 @@ export function SessionSidePanel(props: {
   focusReviewDiff: (path: string) => void
   reviewSnap: boolean
   size: Sizing
+  live: () => { server: ServerConnection.Any; directory: string; sessionId: string } | undefined
 }) {
   const layout = useLayout()
   const settings = useSettings()
@@ -149,6 +153,7 @@ export function SessionSidePanel(props: {
     normalizeTab,
     review: reviewTab,
     hasReview: props.canReview,
+    browser: () => !!props.live(),
   })
   const contextOpen = tabState.contextOpen
   const openedTabs = tabState.openedTabs
@@ -299,6 +304,14 @@ export function SessionSidePanel(props: {
                             </div>
                           </Tabs.Trigger>
                         </Show>
+                        <Show when={props.live()}>
+                          <Tabs.Trigger value="browser">
+                            <div>{language.t("session.tab.browser")}</div>
+                          </Tabs.Trigger>
+                          <Tabs.Trigger value="live-setup">
+                            <div>{language.t("session.tab.connection")}</div>
+                          </Tabs.Trigger>
+                        </Show>
                         <SortableProvider ids={openedTabs()}>
                           <For each={openedTabs()}>{(tab) => <SortableTab tab={tab} onTabClose={tabs().close} />}</For>
                         </SortableProvider>
@@ -352,6 +365,31 @@ export function SessionSidePanel(props: {
                           </div>
                         </Show>
                       </Tabs.Content>
+                    </Show>
+
+                    <Show when={props.live()}>
+                      {(live) => (
+                        <>
+                          <Tabs.Content value="browser" class="flex flex-col h-full overflow-hidden contain-strict">
+                            <Show when={activeTab() === "browser"}>
+                              <LiveBrowserTab
+                                server={live().server}
+                                directory={live().directory}
+                                sessionId={live().sessionId}
+                              />
+                            </Show>
+                          </Tabs.Content>
+                          <Tabs.Content value="live-setup" class="flex flex-col h-full overflow-hidden contain-strict">
+                            <Show when={activeTab() === "live-setup"}>
+                              <LiveConnectionTab
+                                server={live().server}
+                                directory={live().directory}
+                                sessionId={live().sessionId}
+                              />
+                            </Show>
+                          </Tabs.Content>
+                        </>
+                      )}
                     </Show>
 
                     <Show when={activeFileTab()} keyed>

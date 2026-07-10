@@ -8,6 +8,7 @@ import { FileSystemWatcher } from "./filesystem-watcher"
 import { InstallationEvent } from "./installation-event"
 import { Integration } from "./integration"
 import { LegacyEvent } from "./legacy-event"
+import { Live } from "./live"
 import { LspEvent } from "./lsp-event"
 import { McpEvent } from "./mcp-event"
 import { ModelsDev } from "./models-dev"
@@ -50,6 +51,7 @@ const featureDefinitions = Event.inventory(
   ...Plugin.Event.Definitions,
   ...ProjectDirectories.Event.Definitions,
   ...FileSystemWatcher.Event.Definitions,
+  ...Live.Event.Definitions,
   ...Pty.Event.Definitions,
   ...Question.Event.Definitions,
 )

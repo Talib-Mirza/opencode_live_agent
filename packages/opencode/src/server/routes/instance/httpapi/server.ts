@@ -33,6 +33,9 @@ import { Instruction } from "@/session/instruction"
 import { LLM } from "@/session/llm"
 import { SessionProcessor } from "@/session/processor"
 import { SessionPrompt } from "@/session/prompt"
+import { LiveAgent } from "@/session/live-agent"
+import { LiveCdp } from "@/session/live-cdp"
+import { LiveWatch } from "@/session/live-watch"
 import { SessionRevert } from "@/session/revert"
 import { SessionRunState } from "@/session/run-state"
 import { Session } from "@/session/session"
@@ -61,6 +64,8 @@ import { PermissionSaved } from "@opencode-ai/core/permission/saved"
 import { ProjectV2 } from "@opencode-ai/core/project"
 import { ProjectCopy } from "@opencode-ai/core/project/copy"
 import { PtyTicket } from "@opencode-ai/core/pty/ticket"
+import { LiveGateway } from "@opencode-ai/core/live"
+import { LiveTicket } from "@opencode-ai/core/live/ticket"
 import { Ripgrep } from "@opencode-ai/core/ripgrep"
 import { SessionProjector } from "@opencode-ai/core/session/projector"
 import { SessionV2 } from "@opencode-ai/core/session"
@@ -76,10 +81,12 @@ import { PublicApi } from "./public"
 import {
   authorizationLayer,
   authorizationRouterMiddleware,
+  liveConnectAuthorizationLayer,
   ptyConnectAuthorizationLayer,
   serverAuthorizationLayer,
 } from "./middleware/authorization"
 import { EventApi } from "./groups/event"
+import { LiveConnectApi } from "./groups/live"
 import { PtyConnectApi } from "./groups/pty"
 import { eventHandlers } from "./handlers/event"
 import { configHandlers } from "./handlers/config"
@@ -94,6 +101,7 @@ import { permissionHandlers } from "./handlers/permission"
 import { projectHandlers } from "./handlers/project"
 import { projectCopyHandlers } from "./handlers/project-copy"
 import { providerHandlers } from "./handlers/provider"
+import { liveConnectHandlers, liveHandlers } from "./handlers/live"
 import { ptyConnectHandlers, ptyHandlers } from "./handlers/pty"
 import { questionHandlers } from "./handlers/question"
 import { sessionHandlers } from "./handlers/session"
@@ -136,6 +144,7 @@ const cors = (corsOptions?: CorsOptions) =>
 const authOnlyRouterLayer = authorizationRouterMiddleware.layer.pipe(Layer.provide(ServerAuth.Config.layer))
 const httpApiAuthLayer = authorizationLayer.pipe(Layer.provide(ServerAuth.Config.layer))
 const ptyConnectHttpApiAuthLayer = ptyConnectAuthorizationLayer.pipe(Layer.provide(ServerAuth.Config.layer))
+const liveConnectHttpApiAuthLayer = liveConnectAuthorizationLayer.pipe(Layer.provide(ServerAuth.Config.layer))
 const serverHttpApiAuthLayer = serverAuthorizationLayer.pipe(Layer.provide(ServerAuth.Config.layer))
 const workspaceRoutingLive = workspaceRoutingLayer.pipe(Layer.provide(Socket.layerWebSocketConstructorGlobal))
 const rootApiRoutes = HttpApiBuilder.layer(RootHttpApi).pipe(
@@ -151,12 +160,17 @@ const ptyConnectApiRoutes = HttpApiBuilder.layer(PtyConnectApi).pipe(
   Layer.provide(ptyConnectHandlers),
   Layer.provide([ptyConnectHttpApiAuthLayer, workspaceRoutingLive, instanceContextLayer]),
 )
+const liveConnectApiRoutes = HttpApiBuilder.layer(LiveConnectApi).pipe(
+  Layer.provide(liveConnectHandlers),
+  Layer.provide(liveConnectHttpApiAuthLayer),
+)
 const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
   Layer.provide([
     configHandlers,
     experimentalHandlers,
     fileHandlers,
     instanceHandlers,
+    liveHandlers,
     mcpHandlers,
     projectHandlers,
     projectCopyHandlers,
@@ -266,6 +280,11 @@ const app = LayerNode.group([
   ProjectV2.node,
   ProjectCopy.node,
   PtyTicket.node,
+  LiveGateway.node,
+  LiveTicket.node,
+  LiveAgent.node,
+  LiveWatch.node,
+  LiveCdp.node,
 ])
 
 export function createRoutes(
@@ -277,6 +296,7 @@ export function createRoutes(
     rootApiRoutes,
     eventApiRoutes,
     ptyConnectApiRoutes,
+    liveConnectApiRoutes,
     instanceRoutes,
     serverRoutes,
     docRoute,

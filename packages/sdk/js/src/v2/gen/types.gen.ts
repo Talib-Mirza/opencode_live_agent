@@ -60,6 +60,10 @@ export type Event =
   | EventPluginAdded
   | EventProjectDirectoriesUpdated
   | EventFileWatcherUpdated
+  | EventLiveStatusUpdated
+  | EventLiveDigestFired
+  | EventLiveWaitArmed
+  | EventLiveWaitFired
   | EventPtyCreated
   | EventPtyUpdated
   | EventPtyExited
@@ -642,6 +646,22 @@ export type Prompt = {
   text: string
   files?: Array<PromptFileAttachment>
   agents?: Array<PromptAgentAttachment>
+}
+
+export type LiveWaitInfo = {
+  id: string
+  description: string
+  armedAt: number
+  timeoutAt?: number
+}
+
+export type LiveStatus = {
+  directory: string
+  connected: boolean
+  buffered: number
+  sessionID?: string
+  lastDigest?: number
+  waits: Array<LiveWaitInfo>
 }
 
 export type Pty = {
@@ -1301,6 +1321,45 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "live.status.updated"
+        properties: {
+          status: LiveStatus
+        }
+      }
+    | {
+        id: string
+        type: "live.digest.fired"
+        properties: {
+          directory: string
+          sessionID: string
+          trigger: string
+          summary: string
+          ts: number
+        }
+      }
+    | {
+        id: string
+        type: "live.wait.armed"
+        properties: {
+          directory: string
+          sessionID: string
+          waits: Array<LiveWaitInfo>
+        }
+      }
+    | {
+        id: string
+        type: "live.wait.fired"
+        properties: {
+          directory: string
+          sessionID: string
+          waitID: string
+          description: string
+          timedOut: boolean
+          ts: number
+        }
+      }
+    | {
+        id: string
         type: "pty.created"
         properties: {
           info: Pty
@@ -1907,6 +1966,24 @@ export type Config = {
   watcher?: {
     ignore?: Array<string>
   }
+  live?: {
+    watch?: {
+      command?: string
+      logFile?: string
+      cwd?: string
+    }
+    cdp?: {
+      endpoint?: string
+      filter?: string
+    }
+    fields?: "nonsensitive" | "none"
+    triggers?: {
+      networkFailures?: boolean
+      crossOriginDev?: boolean
+      backendErrors?: boolean
+      consoleWarn?: boolean
+    }
+  }
   snapshot?: boolean
   plugin?: Array<
     | string
@@ -2375,6 +2452,87 @@ export type FormatterStatus = {
   name: string
   extensions: Array<string>
   enabled: boolean
+}
+
+export type LiveNavigation = {
+  kind: "navigation"
+  ts: number
+  url: string
+  tab?: string
+  from?: string
+}
+
+export type LiveClick = {
+  kind: "click"
+  ts: number
+  url: string
+  tab?: string
+  selector: string
+  text?: string
+}
+
+export type LiveFieldState = {
+  selector: string
+  name?: string
+  id?: string
+  fieldType: string
+  label?: string
+  filled: boolean
+  length: number
+  value?: string
+  redacted: boolean
+}
+
+export type LiveInput = {
+  kind: "input"
+  ts: number
+  url: string
+  tab?: string
+  trigger: "change" | "submit"
+  fields: Array<LiveFieldState>
+}
+
+export type LiveConsole = {
+  kind: "console"
+  ts: number
+  url: string
+  tab?: string
+  level: "log" | "warn" | "error"
+  message: string
+  stack?: string
+}
+
+export type LiveNetwork = {
+  kind: "network"
+  ts: number
+  url: string
+  tab?: string
+  method: string
+  requestUrl: string
+  status: number
+  durationMs?: number
+}
+
+export type LiveError = {
+  kind: "error"
+  ts: number
+  url: string
+  tab?: string
+  message: string
+  stack?: string
+  origin: "uncaught" | "unhandledrejection"
+}
+
+export type LiveTelemetry = LiveNavigation | LiveClick | LiveInput | LiveConsole | LiveNetwork | LiveError
+
+export type LiveJournalEntry = {
+  seq: number
+  event: LiveTelemetry
+}
+
+export type LiveJournalPage = {
+  entries: Array<LiveJournalEntry>
+  cursor: number
 }
 
 export type McpStatusConnected = {
@@ -2903,6 +3061,10 @@ export type V2Event =
   | PluginAdded
   | ProjectDirectoriesUpdated
   | FileWatcherUpdated
+  | LiveStatusUpdated
+  | LiveDigestFired
+  | LiveWaitArmed
+  | LiveWaitFired
   | PtyCreated
   | PtyUpdated
   | PtyExited
@@ -5524,6 +5686,85 @@ export type FileWatcherUpdated = {
   }
 }
 
+export type LiveStatusUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "live.status.updated"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    status: LiveStatus
+  }
+}
+
+export type LiveDigestFired = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "live.digest.fired"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    directory: string
+    sessionID: string
+    trigger: string
+    summary: string
+    ts: number
+  }
+}
+
+export type LiveWaitArmed = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "live.wait.armed"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    directory: string
+    sessionID: string
+    waits: Array<LiveWaitInfo>
+  }
+}
+
+export type LiveWaitFired = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "live.wait.fired"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    directory: string
+    sessionID: string
+    waitID: string
+    description: string
+    timedOut: boolean
+    ts: number
+  }
+}
+
 export type PtyCreated = {
   id: string
   metadata?: {
@@ -6765,6 +7006,49 @@ export type EventFileWatcherUpdated = {
   properties: {
     file: string
     event: "add" | "change" | "unlink"
+  }
+}
+
+export type EventLiveStatusUpdated = {
+  id: string
+  type: "live.status.updated"
+  properties: {
+    status: LiveStatus
+  }
+}
+
+export type EventLiveDigestFired = {
+  id: string
+  type: "live.digest.fired"
+  properties: {
+    directory: string
+    sessionID: string
+    trigger: string
+    summary: string
+    ts: number
+  }
+}
+
+export type EventLiveWaitArmed = {
+  id: string
+  type: "live.wait.armed"
+  properties: {
+    directory: string
+    sessionID: string
+    waits: Array<LiveWaitInfo>
+  }
+}
+
+export type EventLiveWaitFired = {
+  id: string
+  type: "live.wait.fired"
+  properties: {
+    directory: string
+    sessionID: string
+    waitID: string
+    description: string
+    timedOut: boolean
+    ts: number
   }
 }
 
@@ -8422,6 +8706,121 @@ export type FormatterStatusResponses = {
 }
 
 export type FormatterStatusResponse = FormatterStatusResponses[keyof FormatterStatusResponses]
+
+export type LiveStartData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/live/session"
+}
+
+export type LiveStartErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type LiveStartError = LiveStartErrors[keyof LiveStartErrors]
+
+export type LiveStartResponses = {
+  /**
+   * Created live session
+   */
+  200: Session
+}
+
+export type LiveStartResponse = LiveStartResponses[keyof LiveStartResponses]
+
+export type LiveStopData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/live/stop"
+}
+
+export type LiveStopErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type LiveStopError = LiveStopErrors[keyof LiveStopErrors]
+
+export type LiveStopResponses = {
+  /**
+   * Live capture status after stopping
+   */
+  200: LiveStatus
+}
+
+export type LiveStopResponse = LiveStopResponses[keyof LiveStopResponses]
+
+export type LiveStatusData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/live/status"
+}
+
+export type LiveStatusErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type LiveStatusError = LiveStatusErrors[keyof LiveStatusErrors]
+
+export type LiveStatusResponses = {
+  /**
+   * Live capture status
+   */
+  200: LiveStatus
+}
+
+export type LiveStatusResponse = LiveStatusResponses[keyof LiveStatusResponses]
+
+export type LiveJournalData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    since?: string
+    kind?: "navigation" | "click" | "console" | "network" | "error"
+    limit?: string
+  }
+  url: "/live/journal"
+}
+
+export type LiveJournalErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type LiveJournalError = LiveJournalErrors[keyof LiveJournalErrors]
+
+export type LiveJournalResponses = {
+  /**
+   * Journal entries
+   */
+  200: LiveJournalPage
+}
+
+export type LiveJournalResponse = LiveJournalResponses[keyof LiveJournalResponses]
 
 export type McpStatusData = {
   body?: never
@@ -13615,3 +14014,57 @@ export type PtyConnectResponses = {
 }
 
 export type PtyConnectResponse = PtyConnectResponses[keyof PtyConnectResponses]
+
+export type LiveInjectData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/live/inject.js"
+}
+
+export type LiveInjectErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type LiveInjectError = LiveInjectErrors[keyof LiveInjectErrors]
+
+export type LiveInjectResponses = {
+  /**
+   * Capture script
+   */
+  200: string
+}
+
+export type LiveInjectResponse = LiveInjectResponses[keyof LiveInjectResponses]
+
+export type LiveConnectData = {
+  body?: never
+  path?: never
+  query?: {
+    ticket?: string
+  }
+  url: "/live/connect"
+}
+
+export type LiveConnectErrors = {
+  /**
+   * Forbidden
+   */
+  403: EffectHttpApiErrorForbidden
+}
+
+export type LiveConnectError = LiveConnectErrors[keyof LiveConnectErrors]
+
+export type LiveConnectResponses = {
+  /**
+   * Connected
+   */
+  200: boolean
+}
+
+export type LiveConnectResponse = LiveConnectResponses[keyof LiveConnectResponses]

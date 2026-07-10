@@ -49,6 +49,59 @@ export const Info = Schema.Struct({
     description: "@deprecated Use 'references' field instead. Named git or local directory references",
   }),
   watcher: Schema.optional(Schema.Struct({ ignore: Schema.optional(Schema.mutable(Schema.Array(Schema.String))) })),
+  live: Schema.optional(
+    Schema.Struct({
+      watch: Schema.optional(
+        Schema.Struct({
+          command: Schema.optional(Schema.String).annotate({
+            description:
+              "Dev server command to spawn while a live session is active; its output is captured for the live agent",
+          }),
+          logFile: Schema.optional(Schema.String).annotate({
+            description: "Existing log file to tail instead of spawning a command",
+          }),
+          cwd: Schema.optional(Schema.String).annotate({
+            description: "Working directory for the watch command; defaults to the project directory",
+          }),
+        }),
+      ),
+      cdp: Schema.optional(
+        Schema.Struct({
+          endpoint: Schema.optional(Schema.String).annotate({
+            description:
+              "Chrome DevTools Protocol HTTP endpoint of a browser started with --remote-debugging-port (default http://localhost:9222)",
+          }),
+          filter: Schema.optional(Schema.String).annotate({
+            description: "Only capture pages whose URL contains this substring (default 'localhost')",
+          }),
+        }),
+      ).annotate({
+        description:
+          "Capture browser telemetry over the Chrome DevTools Protocol instead of (or in addition to) the injected script",
+      }),
+      fields: Schema.optional(Schema.Literals(["nonsensitive", "none"])).annotate({
+        description:
+          "Form-field capture mode. 'nonsensitive' (default) records values for non-sensitive fields and fill-state only (no value) for passwords and sensitive fields; 'none' records fill-state only for every field.",
+      }),
+      triggers: Schema.optional(
+        Schema.Struct({
+          networkFailures: Schema.optional(Schema.Boolean).annotate({
+            description: "Wake the agent on failed/blocked network requests (status 0, incl. CORS). Default true",
+          }),
+          crossOriginDev: Schema.optional(Schema.Boolean).annotate({
+            description:
+              "Also wake on cross-origin requests to dev hosts (loopback or same-hostname different-port), not just same-origin. Default true",
+          }),
+          backendErrors: Schema.optional(Schema.Boolean).annotate({
+            description: "Wake the agent on dev-server stderr lines that look like errors. Default true",
+          }),
+          consoleWarn: Schema.optional(Schema.Boolean).annotate({
+            description: "Wake the agent on first-seen console.warn messages (noisier). Default false",
+          }),
+        }),
+      ).annotate({ description: "Which signals wake the live agent" }),
+    }),
+  ).annotate({ description: "Live agent session configuration" }),
   snapshot: Schema.optional(Schema.Boolean).annotate({
     description:
       "Enable or disable snapshot tracking. When false, filesystem snapshots are not recorded and undoing or reverting will not undo/redo file changes. Defaults to true.",
