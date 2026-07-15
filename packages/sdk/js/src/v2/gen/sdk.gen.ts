@@ -2268,12 +2268,13 @@ export class Live extends HeyApiClient {
   /**
    * Start a live session
    *
-   * Create a session observed by the live agent and bind it to this instance's directory so browser telemetry can flow to it.
+   * Bind a session to this instance's directory so browser telemetry can flow to it. Pass sessionID to turn an existing session live (it keeps its agent and history); omit it to create a fresh live-agent session. Any other session that was live in this directory is turned off first.
    */
   public start<ThrowOnError extends boolean = false>(
     parameters?: {
       directory?: string
       workspace?: string
+      sessionID?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -2284,6 +2285,7 @@ export class Live extends HeyApiClient {
           args: [
             { in: "query", key: "directory" },
             { in: "query", key: "workspace" },
+            { in: "query", key: "sessionID" },
           ],
         },
       ],
@@ -2298,7 +2300,7 @@ export class Live extends HeyApiClient {
   /**
    * Stop the live session
    *
-   * Unbind the live session for this instance's directory, revoke outstanding capture tickets, and stop any dev-server watchers. The session itself remains a normal session.
+   * Unbind the live session for this instance's directory, revoke outstanding capture tickets, stop any dev-server watchers, and clear the session's live flag so it becomes a normal session again.
    */
   public stop<ThrowOnError extends boolean = false>(
     parameters?: {

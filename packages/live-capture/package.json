@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./vite": "./src/vite-plugin.ts",
-    "./snippet.js": "./src/snippet.js"
+    "./snippet.js": "./src/snippet.js",
+    "./snapshot.js": "./src/snapshot.js"
   },
   "scripts": {
     "typecheck": "tsgo --noEmit"

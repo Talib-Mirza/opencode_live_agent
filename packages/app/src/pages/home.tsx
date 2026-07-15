@@ -5,7 +5,6 @@ import {
   createMemo,
   createResource,
   createRoot,
-  createSignal,
   For,
   Match,
   on,
@@ -464,38 +463,6 @@ export function NewHome() {
     tabs.newDraft({ server: ServerConnection.key(conn), directory })
   }
 
-  const [goingLive, setGoingLive] = createSignal(false)
-
-  function goLive() {
-    const conn = focusedServer()
-    const project = newSessionProject()
-    if (!conn || !project || goingLive()) return
-    const ctx = global.ensureServerCtx(conn)
-    setGoingLive(true)
-    ctx.sdk.client.live
-      .start({ directory: project.worktree })
-      .then((res) => {
-        if (!res.data) {
-          showToast({ title: language.t("common.requestFailed") })
-          return
-        }
-        const session = res.data
-        ctx.projects.open(project.worktree)
-        ctx.projects.touch(project.worktree)
-        startTransition(() => {
-          const tab = tabs.addSessionTab({ server: ServerConnection.key(conn), sessionId: session.id })
-          tabs.select(tab)
-        })
-      })
-      .catch((err: unknown) =>
-        showToast({
-          title: language.t("common.requestFailed"),
-          description: errorMessage(err, language.t("common.requestFailed")),
-        }),
-      )
-      .finally(() => setGoingLive(false))
-  }
-
   function editProject(conn: ServerConnection.Any, project: LocalProject) {
     void import("@/components/dialog-edit-project").then((x) => {
       dialog.show(() => <x.DialogEditProject server={conn} project={project} />)
@@ -629,17 +596,6 @@ export function NewHome() {
           >
             <Show when={groups().length > 0 && newSessionProject()}>
               <div class="pointer-events-none absolute top-3 right-3 z-20 flex gap-2">
-                <ButtonV2
-                  data-action="home-go-live"
-                  variant="ghost-muted"
-                  size="normal"
-                  icon="monitor"
-                  class="pointer-events-auto h-7 px-2 [font-weight:530]"
-                  disabled={goingLive()}
-                  onClick={goLive}
-                >
-                  {language.t("command.session.goLive")}
-                </ButtonV2>
                 <ButtonV2
                   data-action="home-new-session"
                   variant="ghost-muted"

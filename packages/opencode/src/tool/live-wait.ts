@@ -112,7 +112,11 @@ export const LiveWaitTool = Tool.define(
             })),
           })
           if (armed.length === 0)
-            return { title: "wait cancelled", metadata: { count: 0, waits: [] }, output: "All wake conditions cancelled." }
+            return {
+              title: "wait cancelled",
+              metadata: { count: 0, waits: [] },
+              output: "All wake conditions cancelled.",
+            }
           const lines = armed.map(
             (wait) =>
               `- ${wait.description}${wait.timeoutAt ? ` (times out ${new Date(wait.timeoutAt).toTimeString().slice(0, 8)})` : ""}`,

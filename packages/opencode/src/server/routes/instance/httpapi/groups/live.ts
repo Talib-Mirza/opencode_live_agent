@@ -3,6 +3,7 @@ import { Live } from "@opencode-ai/schema/live"
 import { LIVE_CONNECT_TICKET_QUERY } from "@/server/shared/live"
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
+import { ApiNotFoundError } from "../errors"
 import { Authorization, LiveConnectAuthorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
 import {
@@ -23,6 +24,11 @@ export const LivePaths = {
   connect: `${root}/connect`,
 } as const
 
+export const StartQuery = Schema.Struct({
+  ...WorkspaceRoutingQueryFields,
+  sessionID: Schema.optional(Schema.String),
+})
+
 export const JournalQuery = Schema.Struct({
   ...WorkspaceRoutingQueryFields,
   since: Schema.optional(Schema.String),
@@ -39,14 +45,15 @@ export const LiveApi = HttpApi.make("live").add(
   HttpApiGroup.make("live")
     .add(
       HttpApiEndpoint.post("start", LivePaths.start, {
-        query: WorkspaceRoutingQuery,
-        success: described(Session.Info, "Created live session"),
+        query: StartQuery,
+        success: described(Session.Info, "Live session"),
+        error: ApiNotFoundError,
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "live.start",
           summary: "Start a live session",
           description:
-            "Create a session observed by the live agent and bind it to this instance's directory so browser telemetry can flow to it.",
+            "Bind a session to this instance's directory so browser telemetry can flow to it. Pass sessionID to turn an existing session live (it keeps its agent and history); omit it to create a fresh live-agent session. Any other session that was live in this directory is turned off first.",
         }),
       ),
       HttpApiEndpoint.post("stop", LivePaths.stop, {
@@ -57,7 +64,7 @@ export const LiveApi = HttpApi.make("live").add(
           identifier: "live.stop",
           summary: "Stop the live session",
           description:
-            "Unbind the live session for this instance's directory, revoke outstanding capture tickets, and stop any dev-server watchers. The session itself remains a normal session.",
+            "Unbind the live session for this instance's directory, revoke outstanding capture tickets, stop any dev-server watchers, and clear the session's live flag so it becomes a normal session again.",
         }),
       ),
       HttpApiEndpoint.get("status", LivePaths.status, {
@@ -102,7 +109,10 @@ export const LiveConnectApi = HttpApi.make("live-connect").add(
             "Serve the browser telemetry capture snippet for a directory with an active live session. Responds 404 until a live session is started.",
           transform: (operation) => ({
             ...operation,
-            parameters: [...(operation.parameters ?? []), { in: "query", name: "directory", schema: { type: "string" } }],
+            parameters: [
+              ...(operation.parameters ?? []),
+              { in: "query", name: "directory", schema: { type: "string" } },
+            ],
           }),
         }),
       ),

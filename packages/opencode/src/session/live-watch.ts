@@ -49,36 +49,59 @@ const layer = Layer.effect(
         runFork(gateway.appendLog(directory, [{ ts: Date.now(), stream, line }]))
       })
 
-    const spawnCommand = (directory: string, watch: WatchConfig) =>
-      Effect.sync(() => {
-        const child = Bun.spawn(["sh", "-c", watch.command ?? ""], {
-          cwd: watch.cwd ?? directory,
-          stdout: "pipe",
-          stderr: "pipe",
-          onExit: () => {
-            active.delete(directory)
-          },
-        })
-        const decoder = new TextDecoder()
-        const pump = (readable: ReadableStream<Uint8Array>, stream: "stdout" | "stderr") => {
-          const push = append(directory, stream)
-          const reader = readable.getReader()
-          const loop = (): Promise<void> =>
-            reader.read().then((result) => {
-              if (result.done) return
-              push(decoder.decode(result.value))
-              return loop()
-            })
-          void loop().catch(() => {})
-        }
-        pump(child.stdout, "stdout")
-        pump(child.stderr, "stderr")
-        active.set(directory, { stop: () => child.kill() })
-      })
+    const spawnCommand = (directory: string, watch: WatchConfig) => {
+      // Resolve cwd against the project directory: a relative `cwd` in config (e.g. "./frontend")
+      // must not be resolved against the server process cwd, which is unrelated to the project.
+      const cwd = watch.cwd
+        ? path.isAbsolute(watch.cwd)
+          ? watch.cwd
+          : path.join(directory, watch.cwd)
+        : directory
+      // A dev-server that fails to launch (bad cwd, missing shell/command on PATH) must not fail
+      // the go-live request that started this watcher — the watcher is best-effort log capture, so
+      // a spawn failure is logged and swallowed rather than dying up through `LiveHttpApi.start`.
+      return Effect.try({
+        try: () => {
+          const child = Bun.spawn(["sh", "-c", watch.command ?? ""], {
+            cwd,
+            stdout: "pipe",
+            stderr: "pipe",
+            onExit: () => {
+              active.delete(directory)
+            },
+          })
+          const decoder = new TextDecoder()
+          const pump = (readable: ReadableStream<Uint8Array>, stream: "stdout" | "stderr") => {
+            const push = append(directory, stream)
+            const reader = readable.getReader()
+            const loop = (): Promise<void> =>
+              reader.read().then((result) => {
+                if (result.done) return
+                push(decoder.decode(result.value))
+                return loop()
+              })
+            void loop().catch(() => {})
+          }
+          pump(child.stdout, "stdout")
+          pump(child.stderr, "stderr")
+          active.set(directory, { stop: () => child.kill() })
+        },
+        catch: (error) => error,
+      }).pipe(
+        Effect.catchCause((cause) =>
+          Effect.logWarning("live watch command failed to start", { directory, command: watch.command, cwd, cause }),
+        ),
+      )
+    }
 
     const tailFile = Effect.fn("LiveWatch.tailFile")(function* (directory: string, watch: WatchConfig) {
       const file = path.isAbsolute(watch.logFile ?? "") ? watch.logFile! : path.join(directory, watch.logFile ?? "")
-      const initial = yield* Effect.promise(() => fs.stat(file).then((info) => info.size).catch(() => 0))
+      const initial = yield* Effect.promise(() =>
+        fs
+          .stat(file)
+          .then((info) => info.size)
+          .catch(() => 0),
+      )
       const state = { offset: initial }
       const push = append(directory, "stdout")
       const poll = Effect.promise(async () => {

@@ -34,6 +34,7 @@ import { LLM } from "@/session/llm"
 import { SessionProcessor } from "@/session/processor"
 import { SessionPrompt } from "@/session/prompt"
 import { LiveAgent } from "@/session/live-agent"
+import { LiveBridge } from "@/session/live-bridge"
 import { LiveCdp } from "@/session/live-cdp"
 import { LiveWatch } from "@/session/live-watch"
 import { SessionRevert } from "@/session/revert"
@@ -281,6 +282,7 @@ const app = LayerNode.group([
   ProjectCopy.node,
   PtyTicket.node,
   LiveGateway.node,
+  LiveBridge.node,
   LiveTicket.node,
   LiveAgent.node,
   LiveWatch.node,

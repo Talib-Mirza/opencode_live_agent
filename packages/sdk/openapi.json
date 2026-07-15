@@ -2965,6 +2965,265 @@
         ]
       }
     },
+    "/live/session": {
+      "post": {
+        "tags": ["live"],
+        "operationId": "live.start",
+        "parameters": [
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "sessionID",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Bind a session to this instance's directory so browser telemetry can flow to it. Pass sessionID to turn an existing session live (it keeps its agent and history); omit it to create a fresh live-agent session. Any other session that was live in this directory is turned off first.",
+        "summary": "Start a live session",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.live.start({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/live/stop": {
+      "post": {
+        "tags": ["live"],
+        "operationId": "live.stop",
+        "parameters": [
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live capture status after stopping",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Unbind the live session for this instance's directory, revoke outstanding capture tickets, stop any dev-server watchers, and clear the session's live flag so it becomes a normal session again.",
+        "summary": "Stop the live session",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.live.stop({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/live/status": {
+      "get": {
+        "tags": ["live"],
+        "operationId": "live.status",
+        "parameters": [
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live capture status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Report the live-capture state for this instance's directory.",
+        "summary": "Get live capture status",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.live.status({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/live/journal": {
+      "get": {
+        "tags": ["live"],
+        "operationId": "live.journal",
+        "parameters": [
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["navigation", "click", "console", "network", "error"]
+            },
+            "required": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journal entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveJournalPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Return recent browser telemetry captured for this instance's directory, oldest-first, with a cursor for incremental reads.",
+        "summary": "Read the live telemetry journal",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.live.journal({\n  ...\n})"
+          }
+        ]
+      }
+    },
     "/mcp": {
       "get": {
         "tags": ["mcp"],
@@ -15253,6 +15512,98 @@
           }
         ]
       }
+    },
+    "/live/inject.js": {
+      "get": {
+        "tags": ["live"],
+        "operationId": "live.inject",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Capture script",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "description": "Capture script"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Serve the browser telemetry capture snippet for a directory with an active live session. Responds 404 until a live session is started.",
+        "summary": "Serve the live capture script",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.live.inject({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/live/connect": {
+      "get": {
+        "tags": ["live"],
+        "operationId": "live.connect",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean",
+                  "description": "Connected"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_Forbidden"
+                }
+              }
+            }
+          }
+        },
+        "description": "WebSocket ingest for live browser telemetry, authorized by a possession ticket.",
+        "summary": "Stream browser telemetry",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.live.connect({\n  ...\n})"
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -15423,6 +15774,18 @@
           },
           {
             "$ref": "#/components/schemas/EventFileWatcherUpdated"
+          },
+          {
+            "$ref": "#/components/schemas/EventLiveStatusUpdated"
+          },
+          {
+            "$ref": "#/components/schemas/EventLiveDigestFired"
+          },
+          {
+            "$ref": "#/components/schemas/EventLiveWaitArmed"
+          },
+          {
+            "$ref": "#/components/schemas/EventLiveWaitFired"
           },
           {
             "$ref": "#/components/schemas/EventPtyCreated"
@@ -17204,6 +17567,57 @@
           }
         },
         "required": ["text"],
+        "additionalProperties": false
+      },
+      "LiveWaitInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "armedAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "timeoutAt": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["id", "description", "armedAt"],
+        "additionalProperties": false
+      },
+      "LiveStatus": {
+        "type": "object",
+        "properties": {
+          "directory": {
+            "type": "string"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "buffered": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sessionID": {
+            "type": "string"
+          },
+          "lastDigest": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "waits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveWaitInfo"
+            }
+          }
+        },
+        "required": ["directory", "connected", "buffered", "waits"],
         "additionalProperties": false
       },
       "Pty": {
@@ -19408,6 +19822,144 @@
                   },
                   "type": {
                     "type": "string",
+                    "enum": ["live.status.updated"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "$ref": "#/components/schemas/LiveStatus"
+                      }
+                    },
+                    "required": ["status"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["live.digest.fired"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "directory": {
+                        "type": "string"
+                      },
+                      "sessionID": {
+                        "type": "string"
+                      },
+                      "trigger": {
+                        "type": "string"
+                      },
+                      "summary": {
+                        "type": "string"
+                      },
+                      "ts": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": ["directory", "sessionID", "trigger", "summary", "ts"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["live.wait.armed"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "directory": {
+                        "type": "string"
+                      },
+                      "sessionID": {
+                        "type": "string"
+                      },
+                      "waits": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/LiveWaitInfo"
+                        }
+                      }
+                    },
+                    "required": ["directory", "sessionID", "waits"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["live.wait.fired"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "directory": {
+                        "type": "string"
+                      },
+                      "sessionID": {
+                        "type": "string"
+                      },
+                      "waitID": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "timedOut": {
+                        "type": "boolean"
+                      },
+                      "ts": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": ["directory", "sessionID", "waitID", "description", "timedOut", "ts"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
                     "enum": ["pty.created"]
                   },
                   "properties": {
@@ -21197,6 +21749,61 @@
             },
             "additionalProperties": false
           },
+          "live": {
+            "type": "object",
+            "properties": {
+              "watch": {
+                "type": "object",
+                "properties": {
+                  "command": {
+                    "type": "string"
+                  },
+                  "logFile": {
+                    "type": "string"
+                  },
+                  "cwd": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "cdp": {
+                "type": "object",
+                "properties": {
+                  "endpoint": {
+                    "type": "string"
+                  },
+                  "filter": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "fields": {
+                "type": "string",
+                "enum": ["nonsensitive", "none"]
+              },
+              "triggers": {
+                "type": "object",
+                "properties": {
+                  "networkFailures": {
+                    "type": "boolean"
+                  },
+                  "crossOriginDev": {
+                    "type": "boolean"
+                  },
+                  "backendErrors": {
+                    "type": "boolean"
+                  },
+                  "consoleWarn": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
           "snapshot": {
             "type": "boolean"
           },
@@ -22582,6 +23189,291 @@
         "required": ["name", "extensions", "enabled"],
         "additionalProperties": false
       },
+      "NotFoundError": {
+        "type": "object",
+        "required": ["name", "data"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["NotFoundError"]
+          },
+          "data": {
+            "type": "object",
+            "required": ["message"],
+            "properties": {
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "LiveNavigation": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["navigation"]
+          },
+          "ts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "url": {
+            "type": "string"
+          },
+          "tab": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          }
+        },
+        "required": ["kind", "ts", "url"],
+        "additionalProperties": false
+      },
+      "LiveClick": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["click"]
+          },
+          "ts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "url": {
+            "type": "string"
+          },
+          "tab": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["kind", "ts", "url", "selector"],
+        "additionalProperties": false
+      },
+      "LiveFieldState": {
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "fieldType": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "filled": {
+            "type": "boolean"
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "value": {
+            "type": "string"
+          },
+          "redacted": {
+            "type": "boolean"
+          }
+        },
+        "required": ["selector", "fieldType", "filled", "length", "redacted"],
+        "additionalProperties": false
+      },
+      "LiveInput": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["input"]
+          },
+          "ts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "url": {
+            "type": "string"
+          },
+          "tab": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "string",
+            "enum": ["change", "submit"]
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveFieldState"
+            }
+          }
+        },
+        "required": ["kind", "ts", "url", "trigger", "fields"],
+        "additionalProperties": false
+      },
+      "LiveConsole": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["console"]
+          },
+          "ts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "url": {
+            "type": "string"
+          },
+          "tab": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string",
+            "enum": ["log", "warn", "error"]
+          },
+          "message": {
+            "type": "string"
+          },
+          "stack": {
+            "type": "string"
+          }
+        },
+        "required": ["kind", "ts", "url", "level", "message"],
+        "additionalProperties": false
+      },
+      "LiveNetwork": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["network"]
+          },
+          "ts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "url": {
+            "type": "string"
+          },
+          "tab": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "requestUrl": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["kind", "ts", "url", "method", "requestUrl", "status"],
+        "additionalProperties": false
+      },
+      "LiveError": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["error"]
+          },
+          "ts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "url": {
+            "type": "string"
+          },
+          "tab": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "stack": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string",
+            "enum": ["uncaught", "unhandledrejection"]
+          }
+        },
+        "required": ["kind", "ts", "url", "message", "origin"],
+        "additionalProperties": false
+      },
+      "LiveTelemetry": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/LiveNavigation"
+          },
+          {
+            "$ref": "#/components/schemas/LiveClick"
+          },
+          {
+            "$ref": "#/components/schemas/LiveInput"
+          },
+          {
+            "$ref": "#/components/schemas/LiveConsole"
+          },
+          {
+            "$ref": "#/components/schemas/LiveNetwork"
+          },
+          {
+            "$ref": "#/components/schemas/LiveError"
+          }
+        ]
+      },
+      "LiveJournalEntry": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "event": {
+            "$ref": "#/components/schemas/LiveTelemetry"
+          }
+        },
+        "required": ["seq", "event"],
+        "additionalProperties": false
+      },
+      "LiveJournalPage": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveJournalEntry"
+            }
+          },
+          "cursor": {
+            "type": "integer"
+          }
+        },
+        "required": ["entries", "cursor"],
+        "additionalProperties": false
+      },
       "MCPStatusConnected": {
         "type": "object",
         "properties": {
@@ -23038,25 +23930,6 @@
         },
         "required": ["name", "data"],
         "additionalProperties": false
-      },
-      "NotFoundError": {
-        "type": "object",
-        "required": ["name", "data"],
-        "properties": {
-          "name": {
-            "type": "string",
-            "enum": ["NotFoundError"]
-          },
-          "data": {
-            "type": "object",
-            "required": ["message"],
-            "properties": {
-              "message": {
-                "type": "string"
-              }
-            }
-          }
-        }
       },
       "TextPartInput": {
         "type": "object",
@@ -24142,6 +25015,18 @@
           },
           {
             "$ref": "#/components/schemas/FileWatcherUpdated"
+          },
+          {
+            "$ref": "#/components/schemas/LiveStatusUpdated"
+          },
+          {
+            "$ref": "#/components/schemas/LiveDigestFired"
+          },
+          {
+            "$ref": "#/components/schemas/LiveWaitArmed"
+          },
+          {
+            "$ref": "#/components/schemas/LiveWaitFired"
           },
           {
             "$ref": "#/components/schemas/PtyCreated"
@@ -32095,6 +32980,232 @@
         "required": ["id", "type", "data"],
         "additionalProperties": false
       },
+      "LiveStatusUpdated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["live.status.updated"]
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "$ref": "#/components/schemas/LiveStatus"
+              }
+            },
+            "required": ["status"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "LiveDigestFired": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["live.digest.fired"]
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "directory": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string"
+              },
+              "trigger": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "ts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["directory", "sessionID", "trigger", "summary", "ts"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "LiveWaitArmed": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["live.wait.armed"]
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "directory": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string"
+              },
+              "waits": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LiveWaitInfo"
+                }
+              }
+            },
+            "required": ["directory", "sessionID", "waits"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "LiveWaitFired": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["live.wait.fired"]
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "directory": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string"
+              },
+              "waitID": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "timedOut": {
+                "type": "boolean"
+              },
+              "ts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["directory", "sessionID", "waitID", "description", "timedOut", "ts"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
       "PtyCreated": {
         "type": "object",
         "properties": {
@@ -35778,6 +36889,144 @@
         "required": ["id", "type", "properties"],
         "additionalProperties": false
       },
+      "EventLiveStatusUpdated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["live.status.updated"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "$ref": "#/components/schemas/LiveStatus"
+              }
+            },
+            "required": ["status"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventLiveDigestFired": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["live.digest.fired"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "directory": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string"
+              },
+              "trigger": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "ts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["directory", "sessionID", "trigger", "summary", "ts"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventLiveWaitArmed": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["live.wait.armed"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "directory": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string"
+              },
+              "waits": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LiveWaitInfo"
+                }
+              }
+            },
+            "required": ["directory", "sessionID", "waits"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventLiveWaitFired": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["live.wait.fired"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "directory": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string"
+              },
+              "waitID": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "timedOut": {
+                "type": "boolean"
+              },
+              "ts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["directory", "sessionID", "waitID", "description", "timedOut", "ts"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
       "EventPtyCreated": {
         "type": "object",
         "properties": {
@@ -36802,6 +38051,10 @@
       "description": "Experimental HttpApi instance read routes."
     },
     {
+      "name": "live",
+      "description": "Live agent session routes."
+    },
+    {
       "name": "mcp",
       "description": "Experimental HttpApi MCP routes."
     },
@@ -36920,6 +38173,10 @@
     {
       "name": "pty",
       "description": "PTY websocket route."
+    },
+    {
+      "name": "live",
+      "description": "Live capture ingest routes."
     }
   ]
 }

@@ -93,29 +93,25 @@ const layer = Layer.effect(
         .pipe(Effect.provideService(InstanceRef, ctx))
     })
 
-    yield* gateway
-      .digests()
-      .pipe(
-        Stream.runForEach((digest) =>
-          inject(digest).pipe(
-            Effect.catchCause((cause) => Effect.logError("live digest injection failed", { cause })),
-            Effect.forkScoped,
-          ),
+    yield* gateway.digests().pipe(
+      Stream.runForEach((digest) =>
+        inject(digest).pipe(
+          Effect.catchCause((cause) => Effect.logError("live digest injection failed", { cause })),
+          Effect.forkScoped,
         ),
-        Effect.forkScoped,
-      )
+      ),
+      Effect.forkScoped,
+    )
 
-    yield* gateway
-      .wakes()
-      .pipe(
-        Stream.runForEach((wake) =>
-          inject(wake).pipe(
-            Effect.catchCause((cause) => Effect.logError("live wake injection failed", { cause })),
-            Effect.forkScoped,
-          ),
+    yield* gateway.wakes().pipe(
+      Stream.runForEach((wake) =>
+        inject(wake).pipe(
+          Effect.catchCause((cause) => Effect.logError("live wake injection failed", { cause })),
+          Effect.forkScoped,
         ),
-        Effect.forkScoped,
-      )
+      ),
+      Effect.forkScoped,
+    )
 
     // Booting instances for each live directory is I/O-heavy, so run it off the layer-build path.
     yield* rehydrate().pipe(

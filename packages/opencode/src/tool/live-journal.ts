@@ -1,6 +1,8 @@
 import { Effect, Schema } from "effect"
 import { InstanceState } from "@/effect/instance-state"
+import { LiveBridge } from "@/session/live-bridge"
 import { LiveGateway } from "@opencode-ai/core/live"
+import { Live } from "@opencode-ai/schema/live"
 import * as Tool from "./tool"
 
 const NO_DATA =
@@ -28,7 +30,14 @@ export const BrowserJournalTool = Tool.define(
       description:
         "Read recent browser telemetry (navigation, clicks, console messages, failed requests, errors) captured from the user's live testing session. Only useful in live sessions; use it to pull more context around a live_agent_digest. Returns events oldest-first with a cursor for incremental reads.",
       parameters: JournalParameters,
-      execute: (params: { since?: number; kind?: "navigation" | "click" | "input" | "console" | "network" | "error"; limit?: number }, ctx: Tool.Context) =>
+      execute: (
+        params: {
+          since?: number
+          kind?: "navigation" | "click" | "input" | "console" | "network" | "error"
+          limit?: number
+        },
+        ctx: Tool.Context,
+      ) =>
         Effect.gen(function* () {
           yield* ctx.ask({
             permission: "browser_journal",
@@ -52,6 +61,85 @@ export const BrowserJournalTool = Tool.define(
           }
         }),
     } satisfies Tool.DefWithoutID<typeof JournalParameters, { count: number; cursor: number }>
+  }),
+)
+
+export const ReadParameters = Schema.Struct({
+  selector: Schema.optional(Schema.String).annotate({
+    description: "CSS selector to read (e.g. 'main', '#login-form', '.error'). Omit to read the whole page body.",
+  }),
+  mode: Schema.optional(Schema.Literals(["text", "html", "a11y"])).annotate({
+    description:
+      "text (default): visible text of the target. html: its outerHTML. a11y: a role/name/state tree, like assistive tech sees.",
+  }),
+  tab: Schema.optional(Schema.String).annotate({
+    description:
+      "Tab id (from the `tab` field on browser_journal events) to read when several tabs are connected. Omit for the most recently active tab.",
+  }),
+  maxChars: Schema.optional(Schema.Number).annotate({
+    description: "Truncate text/html output to this many characters (default 20000).",
+  }),
+})
+
+function renderRead(result: Live.SnapshotResult) {
+  const header = [
+    `url: ${result.url}`,
+    ...(result.title ? [`title: ${result.title}`] : []),
+    ...(result.selector ? [`selector: ${result.selector}`] : []),
+    `mode: ${result.mode}`,
+    ...(result.truncated ? ["(truncated)"] : []),
+  ].join("\n")
+  if (!result.found)
+    return `No element matched${result.selector ? ` selector "${result.selector}"` : ""} on the page.\n${header}`
+  if (result.mode === "html") return `${header}\n\n${result.html ?? ""}`
+  if (result.mode === "a11y")
+    return [
+      header,
+      "",
+      ...(result.nodes ?? []).map(
+        (node) => `${node.role}${node.name ? ` "${node.name}"` : ""}${node.state ? ` [${node.state}]` : ""}`,
+      ),
+    ].join("\n")
+  return `${header}\n\n${result.text ?? ""}`
+}
+
+export const BrowserReadTool = Tool.define(
+  "browser_read",
+  Effect.gen(function* () {
+    const bridge = yield* LiveBridge.Service
+    return {
+      description:
+        "Read what is currently on the page in the user's live browser session, on demand. Returns the visible text (default), HTML, or an accessibility tree of the whole page or a CSS-selector target. Only works in a live session with a connected browser; use it to see current page content the passive telemetry does not capture (an error banner's text, a dropdown's options, current form state).",
+      parameters: ReadParameters,
+      execute: (
+        params: { selector?: string; mode?: "text" | "html" | "a11y"; tab?: string; maxChars?: number },
+        ctx: Tool.Context,
+      ) =>
+        Effect.gen(function* () {
+          yield* ctx.ask({ permission: "browser_read", patterns: ["*"], always: ["*"], metadata: {} })
+          const ins = yield* InstanceState.context
+          const request: Live.SnapshotRequest = {
+            selector: params.selector,
+            mode: params.mode,
+            tab: params.tab,
+            maxChars: params.maxChars,
+          }
+          const result = yield* bridge.snapshot(normalizeDirectory(ins.directory), request)
+          return {
+            title: result.found ? `page read (${result.mode})` : "no match",
+            metadata: { found: result.found, truncated: result.truncated, length: result.length },
+            output: renderRead(result),
+          }
+        }).pipe(
+          Effect.catchTag("LiveBridgeError", (error) =>
+            Effect.succeed({
+              title: "browser read",
+              metadata: { found: false, truncated: false, length: 0 },
+              output: error.reason === "no_connection" ? NO_DATA : `Could not read the page: ${error.detail}`,
+            }),
+          ),
+        ),
+    } satisfies Tool.DefWithoutID<typeof ReadParameters, { found: boolean; truncated: boolean; length: number }>
   }),
 )
 

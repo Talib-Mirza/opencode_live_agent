@@ -33,12 +33,17 @@ const consoleError = (message: string): Live.Telemetry => ({
 
 const batch = (...events: Live.Telemetry[]): Live.IngestBatch => ({ source: "injected", events })
 
+// The instructions prose documents the <no_issues_observed/> marker, so assert against the
+// <outcome> block itself rather than the whole wake text.
+const outcomeBlock = (text: string) => text.slice(text.indexOf("<outcome>"), text.indexOf("</outcome>"))
+
 const collectWakes = Effect.gen(function* () {
   const gateway = yield* LiveGateway.Service
   const collected: LiveWake.Wake[] = []
-  const fiber = yield* gateway
-    .wakes()
-    .pipe(Stream.runForEach((wake) => Effect.sync(() => collected.push(wake))), Effect.forkScoped)
+  const fiber = yield* gateway.wakes().pipe(
+    Stream.runForEach((wake) => Effect.sync(() => collected.push(wake))),
+    Effect.forkScoped,
+  )
   yield* Effect.sleep(10)
   return { collected, fiber }
 })
@@ -46,9 +51,10 @@ const collectWakes = Effect.gen(function* () {
 const collectDigests = Effect.gen(function* () {
   const gateway = yield* LiveGateway.Service
   const collected: string[] = []
-  const fiber = yield* gateway
-    .digests()
-    .pipe(Stream.runForEach((digest) => Effect.sync(() => collected.push(digest.trigger))), Effect.forkScoped)
+  const fiber = yield* gateway.digests().pipe(
+    Stream.runForEach((digest) => Effect.sync(() => collected.push(digest.trigger))),
+    Effect.forkScoped,
+  )
   yield* Effect.sleep(10)
   return { collected, fiber }
 })
@@ -144,11 +150,62 @@ describe("live wait — matching", () => {
         sessionID: "ses_wait_d",
         waits: [{ description: "migration done", sources: ["backend_log"], pattern: "migration complete" }],
       })
-      yield* gateway.appendLog("/tmp/wait-d", [{ ts: Date.now(), stream: "stdout", line: "Migration complete (12 tables)" }])
+      yield* gateway.appendLog("/tmp/wait-d", [
+        { ts: Date.now(), stream: "stdout", line: "Migration complete (12 tables)" },
+      ])
       yield* Effect.sleep(20)
 
       expect(collected.length).toBe(1)
       expect(collected[0].text).toContain("backend_log stream=stdout line=Migration complete (12 tables)")
+      yield* Fiber.interrupt(fiber)
+    }),
+  )
+
+  it.live("folds a concurrent error into the fired wake's outcome even inside the user-quiet window", () =>
+    Effect.gen(function* () {
+      const gateway = yield* LiveGateway.Service
+      const wakes = yield* collectWakes
+      const digests = yield* collectDigests
+      yield* gateway.bind("/tmp/wait-outcome", "ses_wait_outcome")
+      // Quiet window: a digest for the error would normally be held, not delivered. The wake must
+      // still surface it so the agent cannot narrate success off the bare trigger.
+      yield* gateway.noteUserActivity("ses_wait_outcome")
+      yield* gateway.arm("/tmp/wait-outcome", {
+        sessionID: "ses_wait_outcome",
+        waits: [{ description: "user clicks login", sources: ["click"], pattern: "login" }],
+      })
+      yield* gateway.ingest(
+        "/tmp/wait-outcome",
+        batch(click("button.login", "Log in"), consoleError("TypeError: cannot read properties of undefined")),
+      )
+      yield* Effect.sleep(20)
+
+      expect(digests.collected).toEqual([])
+      expect(wakes.collected.length).toBe(1)
+      const outcome = outcomeBlock(wakes.collected[0].text)
+      expect(outcome).toContain("TypeError: cannot read properties of undefined")
+      expect(outcome).not.toContain("<no_issues_observed/>")
+      // The matched click is the trigger, not an outcome issue — it must not be duplicated as one.
+      expect(outcome.match(/<issue /g)?.length).toBe(1)
+      yield* Fiber.interrupt(wakes.fiber)
+      yield* Fiber.interrupt(digests.fiber)
+    }),
+  )
+
+  it.live("marks a clean wake with no_issues_observed so the trigger is not read as an outcome", () =>
+    Effect.gen(function* () {
+      const gateway = yield* LiveGateway.Service
+      const { collected, fiber } = yield* collectWakes
+      yield* gateway.bind("/tmp/wait-clean", "ses_wait_clean")
+      yield* gateway.arm("/tmp/wait-clean", {
+        sessionID: "ses_wait_clean",
+        waits: [{ description: "user clicks login", sources: ["click"], pattern: "login" }],
+      })
+      yield* gateway.ingest("/tmp/wait-clean", batch(click("button.login", "Log in")))
+      yield* Effect.sleep(20)
+
+      expect(collected.length).toBe(1)
+      expect(outcomeBlock(collected[0].text)).toContain("<no_issues_observed/>")
       yield* Fiber.interrupt(fiber)
     }),
   )
@@ -284,9 +341,7 @@ describe("live wait — canonical lines and rendering", () => {
       expect(
         LiveWake.eventLine({ kind: "error", ts: 0, url: "http://x.dev/", message: "bad", origin: "uncaught" }),
       ).toBe("error origin=uncaught message=bad url=http://x.dev/")
-      expect(LiveWake.logLine({ ts: 0, stream: "stderr", line: "boom" })).toBe(
-        "backend_log stream=stderr line=boom",
-      )
+      expect(LiveWake.logLine({ ts: 0, stream: "stderr", line: "boom" })).toBe("backend_log stream=stderr line=boom")
     }),
   )
 
@@ -307,8 +362,24 @@ describe("live wait — canonical lines and rendering", () => {
           url: "http://localhost:5173/signup",
           trigger: "submit",
           fields: [
-            { selector: "input#email", name: "email", fieldType: "email", filled: true, length: 7, value: "a@b.com", redacted: false },
-            { selector: "input#password", name: "password", fieldType: "password", filled: true, length: 9, value: "hunter2!!", redacted: true },
+            {
+              selector: "input#email",
+              name: "email",
+              fieldType: "email",
+              filled: true,
+              length: 7,
+              value: "a@b.com",
+              redacted: false,
+            },
+            {
+              selector: "input#password",
+              name: "password",
+              fieldType: "password",
+              filled: true,
+              length: 9,
+              value: "hunter2!!",
+              redacted: true,
+            },
           ],
         }),
       )

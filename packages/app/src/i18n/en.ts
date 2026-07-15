@@ -668,6 +668,11 @@ export const dict = {
   "session.live.waiting": "waiting: {{description}}",
   "session.live.waiting.more": "waiting: {{description}} +{{count}}",
   "session.live.stop": "Stop live session",
+  "session.live.confirm.title": "Go live?",
+  "session.live.confirm.body": "“{{title}}” is already live in this project. Continuing will stop its live session.",
+  "session.live.confirm.body.unknown":
+    "Another session is already live in this project. Continuing will stop its live session.",
+  "session.live.confirm.continue": "Continue",
   "session.live.browser.empty":
     "Browser events will appear here while you browse the app with the capture script connected.",
   "session.tab.connection": "Connection",
@@ -699,7 +704,7 @@ export const dict = {
     "Launch a debugging Chrome instance (a separate profile, so your normal Chrome can stay open):",
   "session.live.setup.method.cdp.step2": "Enable CDP capture in your opencode config:",
   "session.live.setup.method.cdp.step3":
-    "Open your app in that Chrome window on a URL that contains the filter (default \"localhost\").",
+    'Open your app in that Chrome window on a URL that contains the filter (default "localhost").',
   "session.live.setup.method.cdp.note":
     "On Windows or Linux, launch your Chrome binary with the same --remote-debugging-port=9222 flag. Only tabs whose URL contains the filter are captured.",
   "session.todo.title": "Todos",

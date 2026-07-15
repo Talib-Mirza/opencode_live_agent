@@ -124,7 +124,31 @@
     socket.addEventListener("open", function () {
       connected = true
       reconnectAttempt = 0
+      // Announce this tab so the server can route per-tab browser_read requests to this socket.
+      try {
+        socket.send(JSON.stringify({ type: "hello", tab: tabId }))
+      } catch (err) {
+        // ignore
+      }
       scheduleFlush()
+    })
+
+    // Server -> browser control frames. Today only browser_read (a "snapshot" request): run the
+    // shared extractor and reply with the result, correlated by id. Guarded so a malformed frame or
+    // an extractor bug can never break the host page or the telemetry stream.
+    socket.addEventListener("message", function (event) {
+      try {
+        var frame = JSON.parse(String(event.data))
+        if (!frame || frame.type !== "snapshot") return
+        var extractor = globalThis.__OPENCODE_LIVE_SNAPSHOT__
+        var result =
+          typeof extractor === "function"
+            ? extractor(frame.request || {})
+            : { found: false, url: nowUrl(), mode: "text", truncated: false, length: 0 }
+        socket.send(JSON.stringify({ type: "snapshot_result", id: frame.id, result: result }))
+      } catch (err) {
+        // ignore
+      }
     })
 
     socket.addEventListener("close", function () {
@@ -527,7 +551,8 @@
       selector: cssPath(element),
       name: name || undefined,
       id: element.id || undefined,
-      fieldType: element.tagName === "INPUT" ? String(element.type || "text").toLowerCase() : element.tagName.toLowerCase(),
+      fieldType:
+        element.tagName === "INPUT" ? String(element.type || "text").toLowerCase() : element.tagName.toLowerCase(),
       label: label,
       filled: value.length > 0,
       length: value.length,
@@ -564,10 +589,7 @@
           var form = event.target
           if (!(form instanceof Element)) return
           var elements = form.elements ? Array.prototype.slice.call(form.elements) : []
-          var fields = elements
-            .filter(isCapturableField)
-            .slice(0, MAX_FORM_FIELDS)
-            .map(describeField)
+          var fields = elements.filter(isCapturableField).slice(0, MAX_FORM_FIELDS).map(describeField)
           if (fields.length === 0) return
           enqueue({
             kind: "input",

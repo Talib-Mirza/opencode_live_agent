@@ -96,6 +96,74 @@ export const IngestBatch = Schema.Struct({
 }).annotate({ identifier: "LiveIngestBatch" })
 export interface IngestBatch extends Schema.Schema.Type<typeof IngestBatch> {}
 
+// On-demand page-read request the live agent issues via the browser_read tool. Runs identically in
+// the injected snippet (in-page) and the CDP backend (Runtime.evaluate) — see live-capture/snapshot.js.
+export const SnapshotMode = Schema.Literals(["text", "html", "a11y"])
+export type SnapshotMode = typeof SnapshotMode.Type
+
+export const SnapshotRequest = Schema.Struct({
+  // CSS selector to read; omitted reads document.body.
+  selector: optional(Schema.String),
+  mode: optional(SnapshotMode),
+  // Which connected tab to read; omitted targets the most-recently-connected one.
+  tab: optional(Schema.String),
+  maxChars: optional(NonNegativeInt),
+  maxNodes: optional(NonNegativeInt),
+}).annotate({ identifier: "LiveSnapshotRequest" })
+export interface SnapshotRequest extends Schema.Schema.Type<typeof SnapshotRequest> {}
+
+export const SnapshotNode = Schema.Struct({
+  role: Schema.String,
+  name: optional(Schema.String),
+  state: optional(Schema.String),
+}).annotate({ identifier: "LiveSnapshotNode" })
+export interface SnapshotNode extends Schema.Schema.Type<typeof SnapshotNode> {}
+
+export const SnapshotResult = Schema.Struct({
+  found: Schema.Boolean,
+  url: Schema.String,
+  title: optional(Schema.String),
+  selector: optional(Schema.String),
+  mode: Schema.String,
+  text: optional(Schema.String),
+  html: optional(Schema.String),
+  nodes: optional(Schema.Array(SnapshotNode)),
+  truncated: Schema.Boolean,
+  // Character count (text/html) or node count (a11y) before truncation.
+  length: NonNegativeInt,
+}).annotate({ identifier: "LiveSnapshotResult" })
+export interface SnapshotResult extends Schema.Schema.Type<typeof SnapshotResult> {}
+
+// Control frames on the injected-capture WebSocket. Telemetry batches still flow browser->server as
+// IngestBatch; these add a request/response channel and a connect-time tab announcement. The server
+// sends SnapshotRequestFrame down the socket; the snippet answers with SnapshotResultFrame. HelloFrame
+// lets the server map a socket to the tab id its telemetry carries so per-tab reads can be routed.
+export const HelloFrame = Schema.Struct({
+  type: Schema.Literal("hello"),
+  tab: Schema.String,
+}).annotate({ identifier: "LiveHelloFrame" })
+export interface HelloFrame extends Schema.Schema.Type<typeof HelloFrame> {}
+
+export const SnapshotRequestFrame = Schema.Struct({
+  type: Schema.Literal("snapshot"),
+  id: Schema.String,
+  request: SnapshotRequest,
+}).annotate({ identifier: "LiveSnapshotRequestFrame" })
+export interface SnapshotRequestFrame extends Schema.Schema.Type<typeof SnapshotRequestFrame> {}
+
+export const SnapshotResultFrame = Schema.Struct({
+  type: Schema.Literal("snapshot_result"),
+  id: Schema.String,
+  result: SnapshotResult,
+}).annotate({ identifier: "LiveSnapshotResultFrame" })
+export interface SnapshotResultFrame extends Schema.Schema.Type<typeof SnapshotResultFrame> {}
+
+// Everything a connected browser may send server-ward: telemetry batches plus the two control frames.
+export const ClientFrame = Schema.Union([IngestBatch, HelloFrame, SnapshotResultFrame]).annotate({
+  identifier: "LiveClientFrame",
+})
+export type ClientFrame = typeof ClientFrame.Type
+
 export const DevLogLine = Schema.Struct({
   ts: NonNegativeInt,
   stream: Schema.Literals(["stdout", "stderr"]),

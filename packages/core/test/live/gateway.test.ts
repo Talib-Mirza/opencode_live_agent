@@ -1,5 +1,6 @@
 import { describe, expect } from "bun:test"
 import { Effect, Fiber, Stream } from "effect"
+import * as TestClock from "effect/testing/TestClock"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { LiveGateway } from "@opencode-ai/core/live"
 import { LiveSignature } from "@opencode-ai/core/live/signature"
@@ -30,9 +31,10 @@ const batch = (...events: Live.Telemetry[]): Live.IngestBatch => ({ source: "inj
 const collectDigests = Effect.gen(function* () {
   const gateway = yield* LiveGateway.Service
   const collected: string[] = []
-  const fiber = yield* gateway
-    .digests()
-    .pipe(Stream.runForEach((digest) => Effect.sync(() => collected.push(digest.trigger))), Effect.forkScoped)
+  const fiber = yield* gateway.digests().pipe(
+    Stream.runForEach((digest) => Effect.sync(() => collected.push(digest.trigger))),
+    Effect.forkScoped,
+  )
   yield* Effect.sleep(10)
   return { collected, fiber }
 })
@@ -94,17 +96,15 @@ describe("live gateway triggers", () => {
       const gateway = yield* LiveGateway.Service
       const texts: string[] = []
       const triggers: string[] = []
-      const fiber = yield* gateway
-        .digests()
-        .pipe(
-          Stream.runForEach((digest) =>
-            Effect.sync(() => {
-              texts.push(digest.text)
-              triggers.push(digest.trigger)
-            }),
-          ),
-          Effect.forkScoped,
-        )
+      const fiber = yield* gateway.digests().pipe(
+        Stream.runForEach((digest) =>
+          Effect.sync(() => {
+            texts.push(digest.text)
+            triggers.push(digest.trigger)
+          }),
+        ),
+        Effect.forkScoped,
+      )
       yield* Effect.sleep(10)
       yield* gateway.bind("/tmp/app-multi", "ses_live_multi")
       yield* gateway.ingest(
@@ -126,14 +126,19 @@ describe("live gateway triggers", () => {
     Effect.gen(function* () {
       const gateway = yield* LiveGateway.Service
       const texts: string[] = []
-      const fiber = yield* gateway
-        .digests()
-        .pipe(Stream.runForEach((digest) => Effect.sync(() => texts.push(digest.text))), Effect.forkScoped)
+      const fiber = yield* gateway.digests().pipe(
+        Stream.runForEach((digest) => Effect.sync(() => texts.push(digest.text))),
+        Effect.forkScoped,
+      )
       yield* Effect.sleep(10)
       yield* gateway.bind("/tmp/app-cap", "ses_live_cap")
       yield* gateway.ingest(
         "/tmp/app-cap",
-        batch(...Array.from({ length: 7 }, (_, i) => network({ requestUrl: `http://localhost:8000/api/r${i}`, status: 500 }))),
+        batch(
+          ...Array.from({ length: 7 }, (_, i) =>
+            network({ requestUrl: `http://localhost:8000/api/r${i}`, status: 500 }),
+          ),
+        ),
       )
       yield* Effect.sleep(20)
 
@@ -144,16 +149,64 @@ describe("live gateway triggers", () => {
     }),
   )
 
+  it.effect("holds digests during the user-quiet window and flushes them after it expires", () =>
+    Effect.gen(function* () {
+      const gateway = yield* LiveGateway.Service
+      const collected: string[] = []
+      const fiber = yield* gateway.digests().pipe(
+        Stream.runForEach((digest) => Effect.sync(() => collected.push(digest.trigger))),
+        Effect.forkScoped,
+      )
+      yield* TestClock.adjust(1)
+      yield* gateway.bind("/tmp/app-quiet", "ses_live_quiet")
+      // Simulate a launch-time bug: the user just spoke, then the page errors immediately.
+      yield* gateway.noteUserActivity("ses_live_quiet")
+      yield* gateway.ingest("/tmp/app-quiet", batch(consoleError("boom on launch")))
+      yield* TestClock.adjust(1000)
+
+      expect(collected).toEqual([])
+
+      yield* TestClock.adjust(20_000)
+      expect(collected).toEqual(["console_error_first_seen"])
+      yield* Fiber.interrupt(fiber)
+    }),
+  )
+
+  it.effect("coalesces issues arriving across the quiet window into the held flush", () =>
+    Effect.gen(function* () {
+      const gateway = yield* LiveGateway.Service
+      const collected: string[] = []
+      const fiber = yield* gateway.digests().pipe(
+        Stream.runForEach((digest) => Effect.sync(() => collected.push(digest.trigger))),
+        Effect.forkScoped,
+      )
+      yield* TestClock.adjust(1)
+      yield* gateway.bind("/tmp/app-quiet-b", "ses_live_quiet_b")
+      yield* gateway.noteUserActivity("ses_live_quiet_b")
+      yield* gateway.ingest("/tmp/app-quiet-b", batch(consoleError("first launch bug")))
+      yield* TestClock.adjust(1000)
+      yield* gateway.ingest(
+        "/tmp/app-quiet-b",
+        batch(network({ requestUrl: "http://localhost:8000/api/boot", status: 500 })),
+      )
+      yield* TestClock.adjust(20_000)
+
+      expect(collected).toEqual(["multiple"])
+      yield* Fiber.interrupt(fiber)
+    }),
+  )
+
   it.live("reads the journal with kind and cursor filters", () =>
     Effect.gen(function* () {
       const gateway = yield* LiveGateway.Service
       yield* gateway.ingest(
         "/tmp/app-e",
-        batch(
-          { kind: "navigation", ts: Date.now(), url: "http://localhost:5173/" },
-          consoleError("journaled"),
-          { kind: "click", ts: Date.now(), url: "http://localhost:5173/", selector: "a.nav" },
-        ),
+        batch({ kind: "navigation", ts: Date.now(), url: "http://localhost:5173/" }, consoleError("journaled"), {
+          kind: "click",
+          ts: Date.now(),
+          url: "http://localhost:5173/",
+          selector: "a.nav",
+        }),
       )
       const everything = yield* gateway.read("/tmp/app-e", {})
       expect(everything.entries.length).toBe(3)
@@ -193,9 +246,10 @@ describe("live gateway phase 2", () => {
     Effect.gen(function* () {
       const gateway = yield* LiveGateway.Service
       const digests: string[] = []
-      const fiber = yield* gateway
-        .digests()
-        .pipe(Stream.runForEach((digest) => Effect.sync(() => digests.push(digest.text))), Effect.forkScoped)
+      const fiber = yield* gateway.digests().pipe(
+        Stream.runForEach((digest) => Effect.sync(() => digests.push(digest.text))),
+        Effect.forkScoped,
+      )
       yield* Effect.sleep(10)
       yield* gateway.bind("/tmp/app-g", "ses_live_g")
       const now = Date.now()
@@ -335,8 +389,23 @@ describe("live gateway — form field capture", () => {
         "/tmp/app-fields",
         batch(
           submit([
-            { selector: "input#email", name: "email", fieldType: "email", filled: true, length: 15, value: "a@b.com", redacted: false },
-            { selector: "input#password", name: "password", fieldType: "password", filled: true, length: 12, redacted: true },
+            {
+              selector: "input#email",
+              name: "email",
+              fieldType: "email",
+              filled: true,
+              length: 15,
+              value: "a@b.com",
+              redacted: false,
+            },
+            {
+              selector: "input#password",
+              name: "password",
+              fieldType: "password",
+              filled: true,
+              length: 12,
+              redacted: true,
+            },
           ]),
         ),
       )
@@ -351,9 +420,10 @@ describe("live gateway — form field capture", () => {
     Effect.gen(function* () {
       const gateway = yield* LiveGateway.Service
       const digests: string[] = []
-      const fiber = yield* gateway
-        .digests()
-        .pipe(Stream.runForEach((digest) => Effect.sync(() => digests.push(digest.text))), Effect.forkScoped)
+      const fiber = yield* gateway.digests().pipe(
+        Stream.runForEach((digest) => Effect.sync(() => digests.push(digest.text))),
+        Effect.forkScoped,
+      )
       yield* Effect.sleep(10)
       yield* gateway.bind("/tmp/app-login", "ses_live_login")
       // User fills and submits the form, then the login request 500s.
@@ -361,8 +431,24 @@ describe("live gateway — form field capture", () => {
         "/tmp/app-login",
         batch(
           submit([
-            { selector: "input#email", name: "email", fieldType: "email", filled: true, length: 15, value: "user@example.com", redacted: false },
-            { selector: "input#password", name: "password", fieldType: "password", filled: true, length: 9, value: "hunter2!!", redacted: true },
+            {
+              selector: "input#email",
+              name: "email",
+              fieldType: "email",
+              filled: true,
+              length: 15,
+              value: "user@example.com",
+              redacted: false,
+            },
+            {
+              selector: "input#password",
+              name: "password",
+              fieldType: "password",
+              filled: true,
+              length: 9,
+              value: "hunter2!!",
+              redacted: true,
+            },
           ]),
           network({ url: "http://localhost:5173/login", requestUrl: "http://localhost:5173/api/login", status: 500 }),
         ),
@@ -371,7 +457,7 @@ describe("live gateway — form field capture", () => {
 
       expect(digests.length).toBe(1)
       // The agent can see the fields were filled...
-      expect(digests[0]).toContain("email=\"user@example.com\"")
+      expect(digests[0]).toContain('email="user@example.com"')
       expect(digests[0]).toContain("password=[filled len=9]")
       // ...but the redacted secret never appears anywhere in the digest.
       expect(digests[0]).not.toContain("hunter2")
@@ -387,7 +473,17 @@ describe("live gateway — form field capture", () => {
       yield* gateway.ingest(
         "/tmp/app-typing",
         batch(
-          submit([{ selector: "input#q", name: "q", fieldType: "text", filled: true, length: 3, value: "abc", redacted: false }]),
+          submit([
+            {
+              selector: "input#q",
+              name: "q",
+              fieldType: "text",
+              filled: true,
+              length: 3,
+              value: "abc",
+              redacted: false,
+            },
+          ]),
         ),
       )
       yield* Effect.sleep(20)

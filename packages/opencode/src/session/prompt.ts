@@ -14,6 +14,7 @@ import { type Tool as AITool, tool, jsonSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
 import { SystemPrompt } from "./system"
+import PROMPT_LIVE_ADDENDUM from "./prompt/live-addendum.txt"
 import { Instruction } from "./instruction"
 import { Plugin } from "../plugin"
 import { MAX_STEPS_PROMPT } from "@opencode-ai/core/session/runner/max-steps"
@@ -1266,6 +1267,10 @@ const layer = Layer.effect(
               ...instructions,
               ...(mcpInstructions ? [mcpInstructions] : []),
               ...(skills ? [skills] : []),
+              // A session turned live keeps its own agent; the addendum teaches that agent how to
+              // handle injected digest/wake messages. The hidden "live" agent's prompt already
+              // covers this, so it is excluded to avoid duplicating the instructions.
+              ...(session.metadata?.live && agent.name !== "live" ? [PROMPT_LIVE_ADDENDUM] : []),
             ]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)

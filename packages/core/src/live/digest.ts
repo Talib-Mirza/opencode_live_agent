@@ -47,7 +47,9 @@ export function field(state: Live.FieldState) {
   return `${name}=${JSON.stringify(state.value ?? "")}`
 }
 
-function action(event: Live.Telemetry) {
+// Exported so the live_wait wake renderer can describe the same recent-action context a digest
+// carries, keeping the two renderings single-sourced.
+export function action(event: Live.Telemetry) {
   const tab = event.tab ? ` [tab:${event.tab}]` : ""
   switch (event.kind) {
     case "navigation":
@@ -66,9 +68,9 @@ function action(event: Live.Telemetry) {
 }
 
 // The <occurrences>/<location>/<stack>/<backend_log>/correlated-logs body for one issue, shared
-// by the single-issue layout (emitted at the top level) and the multi-issue layout (wrapped in
-// per-issue <issue> blocks).
-function renderIssue(issue: Issue) {
+// by the single-issue layout (emitted at the top level), the multi-issue layout (wrapped in
+// per-issue <issue> blocks), and the live_wait wake's <outcome> block.
+export function renderIssue(issue: Issue) {
   const event = issue.event
   const stack = event && (event.kind === "error" || event.kind === "console") ? event.stack : undefined
   return [
@@ -76,7 +78,9 @@ function renderIssue(issue: Issue) {
     ...(event ? [`<location url="${event.url}"/>`] : []),
     ...(stack ? ["<stack>", stack, "</stack>"] : []),
     ...(issue.backendLine
-      ? [`<backend_log stream="${issue.backendLine.stream}">${issue.backendLine.line} (${clock(issue.backendLine.ts)})</backend_log>`]
+      ? [
+          `<backend_log stream="${issue.backendLine.stream}">${issue.backendLine.line} (${clock(issue.backendLine.ts)})</backend_log>`,
+        ]
       : []),
     ...(issue.correlatedLogs.length
       ? [

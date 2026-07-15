@@ -2454,6 +2454,13 @@ export type FormatterStatus = {
   enabled: boolean
 }
 
+export type NotFoundError = {
+  name: "NotFoundError"
+  data: {
+    message: string
+  }
+}
+
 export type LiveNavigation = {
   kind: "navigation"
   ts: number
@@ -2690,13 +2697,6 @@ export type ProviderAuthError1 = {
     field?: string
     message?: string
     kind?: string
-  }
-}
-
-export type NotFoundError = {
-  name: "NotFoundError"
-  data: {
-    message: string
   }
 }
 
@@ -8713,6 +8713,7 @@ export type LiveStartData = {
   query?: {
     directory?: string
     workspace?: string
+    sessionID?: string
   }
   url: "/live/session"
 }
@@ -8722,13 +8723,17 @@ export type LiveStartErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LiveStartError = LiveStartErrors[keyof LiveStartErrors]
 
 export type LiveStartResponses = {
   /**
-   * Created live session
+   * Live session
    */
   200: Session
 }

@@ -25,6 +25,7 @@ import { useSessionLayout } from "@/pages/session/session-layout"
 import { messageAgentColor } from "@/utils/agent"
 import { decode64 } from "@/utils/base64"
 import { Persist, persisted } from "@/utils/persist"
+import { GoLiveButton } from "../live-go-button"
 import { LiveStatusStrip } from "../live-status-strip"
 import { StatusPopover, StatusPopoverV2 } from "../status-popover"
 import { IconButtonV2 } from "@opencode-ai/ui/v2/icon-button-v2"
@@ -148,14 +149,14 @@ export function SessionHeader() {
   const terminal = useTerminal()
   const { params, view } = useSessionLayout()
 
-  const projectDirectory = createMemo(() => decode64(params.dir) ?? "")
   const currentSession = createMemo(() => sync().data.session?.find((item) => item.id === params.id))
-  const liveSession = createMemo(() => {
+  const projectDirectory = createMemo(() => decode64(params.dir) ?? currentSession()?.directory ?? "")
+  const liveTarget = createMemo(() => {
     const conn = server.current
     const directory = projectDirectory()
     const session = currentSession()
-    if (!conn || !directory || !session?.metadata?.live) return
-    return { server: conn, directory, sessionId: session.id }
+    if (!conn || !directory || !session) return
+    return { server: conn, directory, sessionId: session.id, live: !!session.metadata?.live }
   })
   const project = createMemo(() => {
     const directory = projectDirectory()
@@ -334,8 +335,17 @@ export function SessionHeader() {
       <Show when={rightMount()}>
         {(mount) => (
           <Portal mount={mount()}>
-            <Show when={liveSession()}>
-              {(live) => <LiveStatusStrip server={live().server} directory={live().directory} sessionId={live().sessionId} />}
+            <Show when={liveTarget()}>
+              {(live) => (
+                <Show
+                  when={live().live}
+                  fallback={
+                    <GoLiveButton server={live().server} directory={live().directory} sessionId={live().sessionId} />
+                  }
+                >
+                  <LiveStatusStrip server={live().server} directory={live().directory} sessionId={live().sessionId} />
+                </Show>
+              )}
             </Show>
             <Show
               when={isV2}

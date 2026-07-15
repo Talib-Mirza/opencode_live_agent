@@ -16,8 +16,9 @@ import { WebFetchTool } from "./webfetch"
 import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
-import { BackendLogsTool, BrowserJournalTool } from "./live-journal"
+import { BackendLogsTool, BrowserJournalTool, BrowserReadTool } from "./live-journal"
 import { LiveWaitTool } from "./live-wait"
+import { LiveBridge } from "@/session/live-bridge"
 import { LiveGateway } from "@opencode-ai/core/live"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
@@ -113,6 +114,7 @@ const layer = Layer.effect(
     const patchtool = yield* ApplyPatchTool
     const skilltool = yield* SkillTool
     const browserjournal = yield* BrowserJournalTool
+    const browserread = yield* BrowserReadTool
     const backendlogs = yield* BackendLogsTool
     const livewait = yield* LiveWaitTool
     const agent = yield* Agent.Service
@@ -225,6 +227,7 @@ const layer = Layer.effect(
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
           browserjournal: Tool.init(browserjournal),
+          browserread: Tool.init(browserread),
           backendlogs: Tool.init(backendlogs),
           livewait: Tool.init(livewait),
           ...(codeModeTool ? { execute: Tool.init(codeModeTool) } : {}),
@@ -248,6 +251,7 @@ const layer = Layer.effect(
             tool.skill,
             tool.patch,
             tool.browserjournal,
+            tool.browserread,
             tool.backendlogs,
             tool.livewait,
             ...(tool.execute ? [tool.execute] : []),
@@ -457,6 +461,7 @@ export const node = LayerNode.make({
     Database.node,
     Ripgrep.node,
     LiveGateway.node,
+    LiveBridge.node,
   ],
 })
 

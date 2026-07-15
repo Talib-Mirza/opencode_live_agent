@@ -24,7 +24,9 @@ function describe(summary: Summary) {
   return [
     `A live browser-testing session is active for this project (capture ${summary.connected ? "connected" : "disconnected"}).`,
     "The user is exercising the app in a browser right now; the browser_journal and backend_logs tools return the captured telemetry.",
-    ...(summary.recentErrors.length ? ["Recent browser errors:", ...summary.recentErrors.map((error) => `- ${error}`)] : []),
+    ...(summary.recentErrors.length
+      ? ["Recent browser errors:", ...summary.recentErrors.map((error) => `- ${error}`)]
+      : []),
   ].join("\n")
 }
 
